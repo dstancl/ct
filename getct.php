@@ -2,9 +2,12 @@
 /*
  * Stahování videí ze stránek České televize
  *
- * (C) 2011-2014	David Štancl
+ * (C) 2011-2015	David Štancl
  *
  * Historie:
+ * - 2015-01-02
+ * 	- nový způsob: pomocí VLC
+ *
  * - 2014-02-18
  * 	- přidáno získání dat AJAXem (místo SOAP)
  *
@@ -61,6 +64,7 @@ function getFromURL($url, $post = NULL) {
     curl_setopt ($c, CURLOPT_USERAGENT, 'Mozilla/5.O');	// Browser
     curl_setopt ($c, CURLOPT_HTTPHEADER, array('X-Requested-With: XMLHttpRequest', 'x-addr: 127.0.0.1'));
     curl_setopt ($c, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
+    curl_setopt ($c, CURLOPT_FOLLOWLOCATION, true);
     if ($post) {
 	curl_setopt ($c, CURLOPT_POSTFIELDS, $post);
 	curl_setopt ($c, CURLOPT_POST, TRUE);
@@ -316,6 +320,68 @@ function parseSMIL($smil) {
     return $retval;
 }
 
+/**
+ * Parsování dat z JSON
+ *
+ * Výstupní formát:
+ * 'playlist' - URL s playlistem
+ * 'title' - název
+ *
+ * @param	string	$data	JSON data
+ * @return	array	Data
+ */
+function parseVideoJSON($data)
+{
+    $json = json_decode($data);
+    $retval = array();
+    $playList = $json->playlist;
+    foreach ($playList as $item)
+    {
+	$streamUrls = $item->streamUrls;
+	$retval['playlist'] = $streamUrls->main;
+	$retval['title'] = $item->title;
+    } // foreach
+    return $retval;
+}
+
+/**
+ * Parsování MP3 playlistu
+ *
+ * @param	string	$playlist	Playlist
+ * @return	array	Data
+ */
+function parseMP3Playlist($playlist)
+{
+    $lines = explode("\n", $playlist);
+    $retval = array();
+    $q = 0;
+    foreach ($lines as $line)
+    {
+	if (preg_match('/^#EXT-X-STREAM.*BANDWIDTH=(\d+)/', $line, $m))
+	{
+	    $b = $m[1];
+	    if ($b < 501000)
+		$q = '288p';
+	    elseif ($b < 1033000)
+		$q = '404p';
+	    elseif ($b < 2049000)
+		$q = '576p';
+	    else
+		$q = '1024p';
+	}
+	elseif (preg_match('/(http:\/\/.*m3u8)/', $line, $m))
+	{
+	    $retval[$q] = array(
+		'type' => 'x-stream',
+		'bandwidth' => $b,
+		'quality' => $q,
+		'url' => $m[1],
+	    );
+	}
+    } // foreach
+    return $retval;
+}
+
 // Zpracování parametrů z příkazové řádky
 $videoURL = NULL;
 $verbose = FALSE;
@@ -330,6 +396,7 @@ $dryRun = false;
 $fLive = false;
 $nTry = 1;
 $fIsSetOutputFileName = false;
+$useVLC = false;
 
 for ($i = 1; $i < $_SERVER['argc']; $i++) {
     $val = $_SERVER['argv'][$i];
@@ -505,7 +572,7 @@ if ($method == "SOAP")
 		print("Získávají se data z adresy $u\n");
 	    $url = getFromURL ('http://www.ceskatelevize.cz/'.$u, $post);
 	    $url = preg_replace('/%26/', '&', $url);
-	    if (preg_match ('/<h3>Stránka nebyla nalezena/', $url))
+	    if (preg_match ('/<h2>Stránka nebyla nalezena/', $url))
 		throw new Exception('Stránka nebyla nalezena.');
 	    if (strpos($url, '<URI>') !== false)
 	    {
@@ -534,10 +601,10 @@ elseif ($method == "AJAX")
 	echo "Metoda AJAX, post=$post";
     try
     {
-	$obj = getFromURL('http://www.ceskatelevize.cz/ivysilani/ajax/get-playlist-url', $post);
+	$obj = getFromURL('http://www.ceskatelevize.cz/ivysilani/ajax/get-client-playlist', $post);
 	if ($debug)
 	    echo "obj=$obj";
-	if (preg_match('/"url":"([^"]*)","ad/', $obj, $m)) {
+	if (preg_match('/"url":"([^"]*)"/', $obj, $m)) {
 	    $url = str_replace('\\', '', str_replace('%26', '&', $m[1]));
 	}
 	else
@@ -568,7 +635,24 @@ if ($debug)
     print("$smil\n");
 //$smil = file_get_contents('ClientPlaylist.aspx');	// DEBUG
 try {
-    $videos = parseSMIL($smil);
+    if (preg_match('/switchItem/', $smil))
+    {
+    	$videos = parseSMIL($smil);
+    }
+    else
+    {
+	$mp3data = parseVideoJSON($smil);
+	if ($debug)
+	{
+	    print("mp3data: "); print_r($mp3data);
+	}
+	$mp3PlayLists = getFromUrl($mp3data['playlist']);
+	if ($debug)
+	    print("MP3 Playlists: ".$mp3PlayLists."\n");
+	$videos['title'] = $mp3data['title'];
+	$videos['video'] = parseMP3Playlist($mp3PlayLists);
+	$useVLC = true;
+    }
 } catch (Exception $e) {
     echo "Chyba při získávání údajů o videu.\n";
     exit (2);
@@ -612,41 +696,54 @@ if (!$fIsSetOutputFileName)
 	$outputFileName = substr($videos['video'][$prefQuality.'p'], $p+1);
     }
 }
-// - sestavení parametrů pro rtmpdump
-$rtmpParams = array(
-    'y' => $videos['video'][$prefQuality.'p'],
-    'r' => $videos['base'],
-    'o' => $outputFileName,
-    'e' => '',
-);
-if ($fLive)
-    $rtmpParams['-live'] = '';
-$pUrl = parse_url($videos['base']);
-$rtmpParams['a'] = substr($pUrl['path'], 1).'?'.$pUrl['query'];
-if ($verboseMore)
-    $rtmpParams['-verbose'] = '';
-if (!$verbose && !$debug)
-    $rtmpParams['q'] = '';
-if ($debug) {
-    print_r($rtmpParams);
-}
-if (isset($beginTime))
-    $rtmpParams['-start'] = $beginTime;
-if (isset($endTime))
-    $rtmpParams['-stop'] = $endTime;
-$rtmpdump = 'rtmpdump';
-foreach ($rtmpParams as $key => $val) {
-    $rtmpdump .= ' -'.$key.' '.escapeshellcmd($val);
-}
-if ($verbose) {
-    print ('Spouští se: '.$rtmpdump."\n");
-}
-if ($dryRun)
+
+if ($useVLC)
 {
-    print ($rtmpdump."\n");
+    $vlcParams = '--sout "#std{access=file,mux=mp4,dst='.$outputFileName.'}" '.$videos['video'][$prefQuality.'p']['url'];
+    $vlc = 'cvlc '.$vlcParams;
+    if ($dryRun)
+	print($vlc."\n");
+    else
+	system($vlc);
 }
 else
 {
-    system($rtmpdump);
+    // - sestavení parametrů pro rtmpdump
+    $rtmpParams = array(
+	'y' => $videos['video'][$prefQuality.'p'],
+	'r' => $videos['base'],
+	'o' => $outputFileName,
+	'e' => '',
+    );
+    if ($fLive)
+	$rtmpParams['-live'] = '';
+    $pUrl = parse_url($videos['base']);
+    $rtmpParams['a'] = substr($pUrl['path'], 1).'?'.$pUrl['query'];
+    if ($verboseMore)
+	$rtmpParams['-verbose'] = '';
+    if (!$verbose && !$debug)
+	$rtmpParams['q'] = '';
+    if ($debug) {
+	print_r($rtmpParams);
+    }
+    if (isset($beginTime))
+	$rtmpParams['-start'] = $beginTime;
+    if (isset($endTime))
+	$rtmpParams['-stop'] = $endTime;
+    $rtmpdump = 'rtmpdump';
+    foreach ($rtmpParams as $key => $val) {
+	$rtmpdump .= ' -'.$key.' '.escapeshellcmd($val);
+    }
+    if ($verbose) {
+	print ('Spouští se: '.$rtmpdump."\n");
+    }
+    if ($dryRun)
+    {
+	print ($rtmpdump."\n");
+    }
+    else
+    {
+	system($rtmpdump);
+    }
 }
 ?>
