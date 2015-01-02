@@ -699,9 +699,13 @@ if (!isset($videos['video'][$prefQuality.'p'])) {
 // Není-li zadán název videa, vytvořit z názvu
 if (!$fIsSetOutputFileName)
 {
-    if (false !== ($p = strrpos($videos['video'][$prefQuality.'p'], '/')))
+    $title = isset($videos['title']) ? $videos['title'] : $videos['video'][$prefQuality.'p'];
+    if (is_array($title) && isset($title['url']))
+	$title = $title['url'];
+    $outputFileName = $title;
+    if (false !== ($p = strrpos($title, '/')))
     {
-	$outputFileName = substr($videos['video'][$prefQuality.'p'], $p+1);
+	$outputFileName = substr($title, $p+1);
     }
 }
 
