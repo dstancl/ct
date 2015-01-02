@@ -7,6 +7,7 @@
  * Historie:
  * - 2015-01-02
  * 	- nový způsob: pomocí VLC
+ * 	- stahování pomocí ffmpeg
  *
  * - 2014-02-18
  * 	- přidáno získání dat AJAXem (místo SOAP)
@@ -227,7 +228,7 @@ function SOAP2POST($soap) {
  */
 function showHelp() {
     echo "Použití:\n";
-    echo basename($_SERVER['argv'][0])." [-h|--help] [-v|--verbose|-vv|--more-verbose] [-V|--version] [-o|--output filename] [-a|--article] [-s|--dryrun] [-b|--begin value] [-e|--end value] [-q|--quality value] [-l|--live] url\n";
+    echo basename($_SERVER['argv'][0])." [-h|--help] [-v|--verbose|-vv|--more-verbose] [-V|--version] [-o|--output filename] [-a|--article] [-s|--dryrun] [-b|--begin value] [-e|--end value] [-q|--quality value] [-f|--ffmpeg] [-l|--live] url\n";
     echo "-h\tNápověda\n";
     echo "-v\tZobrazovat akce\n";
     echo "-V\tZobrazit verzi\n";
@@ -239,6 +240,7 @@ function showHelp() {
     echo "-q\tKvalita (obvykle 288, 404, 576)\n";
     echo "-l\tPoužít parametr --live u rtmpdump\n";
     echo "-vv\tPoužít verbose i na rtmpdump\n";
+    echo "-f\tPoužít ffmpeg místo vlc\n";
     echo "url\tAdresa videa (stránky s videem)\n";
 }
 
@@ -397,6 +399,7 @@ $fLive = false;
 $nTry = 1;
 $fIsSetOutputFileName = false;
 $useVLC = false;
+$useFFMPEG = false;
 
 for ($i = 1; $i < $_SERVER['argc']; $i++) {
     $val = $_SERVER['argv'][$i];
@@ -495,6 +498,11 @@ for ($i = 1; $i < $_SERVER['argc']; $i++) {
 		echo "Chybí údaj o počtu opakování.\n";
 	    }
 	    break;	// 't'
+
+	case 'f':
+	case '-ffmpeg':
+	    $useFFMPEG = true;
+	    break;	// 'f'
 
 	default:
 	    echo "Neznámý přepínač $val";
@@ -699,12 +707,26 @@ if (!$fIsSetOutputFileName)
 
 if ($useVLC)
 {
-    $vlcParams = '--play-and-exit --sout "#std{access=file,mux=mp4,dst='.$outputFileName.'}" '.$videos['video'][$prefQuality.'p']['url'];
-    $vlc = 'cvlc '.$vlcParams;
-    if ($dryRun)
-	print($vlc."\n");
+    $url = $videos['video'][$prefQuality.'p']['url'];
+    if ($useFFMPEG)
+    {
+	$ffmpegParams = $verboseMore ? '' : '-loglevel silent ';
+	$ffmpegParams .= '-i '.$url.' -c:a copy -c:v copy -bsf:a aac_adtstoasc '.$outputFileName;
+	$ffmpeg = 'ffmpeg '.$ffmpegParams;
+	if ($dryRun)
+	    print($ffmpeg."\n");
+	else
+	    system($ffmpeg);
+    }
     else
-	system($vlc);
+    {
+	$vlcParams = '--play-and-exit --sout "#std{access=file,mux=mp4,dst='.$outputFileName.'}" '.$url;
+	$vlc = 'cvlc '.$vlcParams;
+	if ($dryRun)
+	    print($vlc."\n");
+	else
+	    system($vlc);
+    }
 }
 else
 {
