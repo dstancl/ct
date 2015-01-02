@@ -699,7 +699,7 @@ if (!$fIsSetOutputFileName)
 
 if ($useVLC)
 {
-    $vlcParams = '--sout "#std{access=file,mux=mp4,dst='.$outputFileName.'}" '.$videos['video'][$prefQuality.'p']['url'];
+    $vlcParams = '--play-and-exit --sout "#std{access=file,mux=mp4,dst='.$outputFileName.'}" '.$videos['video'][$prefQuality.'p']['url'];
     $vlc = 'cvlc '.$vlcParams;
     if ($dryRun)
 	print($vlc."\n");
