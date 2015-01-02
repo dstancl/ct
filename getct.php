@@ -384,6 +384,22 @@ function parseMP3Playlist($playlist)
     return $retval;
 }
 
+/**
+ * Úprava názvu souboru
+ *
+ * Vrací upravený název souboru tak, aby byl použitelný v shellu
+ *
+ * @param	string	$str
+ * @return	string Upravený název
+ */
+function shellSanitize($str)
+{
+    $str = str_replace(' ', '\\ ', $str);
+    $str = str_replace('"', '\\"', $str);
+    $str = str_replace("'", "\\'", $str);
+    return $str;
+}
+
 // Zpracování parametrů z příkazové řádky
 $videoURL = NULL;
 $verbose = FALSE;
@@ -715,7 +731,7 @@ if ($useVLC)
     if ($useFFMPEG)
     {
 	$ffmpegParams = $verboseMore ? '' : '-loglevel silent ';
-	$ffmpegParams .= '-i '.$url.' -c:a copy -c:v copy -bsf:a aac_adtstoasc '.$outputFileName;
+	$ffmpegParams .= '-i '.$url.' -c:a copy -c:v copy -bsf:a aac_adtstoasc '.shellSanitize($outputFileName);
 	$ffmpeg = 'ffmpeg '.$ffmpegParams;
 	if ($dryRun)
 	    print($ffmpeg."\n");
@@ -724,7 +740,7 @@ if ($useVLC)
     }
     else
     {
-	$vlcParams = '--play-and-exit --sout "#std{access=file,mux=mp4,dst='.$outputFileName.'}" '.$url;
+	$vlcParams = '--play-and-exit --sout "#std{access=file,mux=mp4,dst='.shellSanitize($outputFileName).'}" '.$url;
 	$vlc = 'cvlc '.$vlcParams;
 	if ($dryRun)
 	    print($vlc."\n");
@@ -738,7 +754,7 @@ else
     $rtmpParams = array(
 	'y' => $videos['video'][$prefQuality.'p'],
 	'r' => $videos['base'],
-	'o' => $outputFileName,
+	'o' => shellSanitize($outputFileName),
 	'e' => '',
     );
     if ($fLive)
