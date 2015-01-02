@@ -723,6 +723,7 @@ if (!$fIsSetOutputFileName)
     {
 	$outputFileName = substr($title, $p+1);
     }
+    $outputFileName .= ".mp4";
 }
 
 if ($useVLC)
