@@ -5,6 +5,10 @@
  * (C) 2011-2015	David Štancl
  *
  * Historie:
+ * - 2015-01-03
+ * 	- opravy chyb: stahování videí k článkům
+ * 	- použití názvu videa: pro název souboru, metainformace pro ffmpeg
+ *
  * - 2015-01-02
  * 	- nový způsob: pomocí VLC
  * 	- stahování pomocí ffmpeg
@@ -161,9 +165,11 @@ function getContentFromURL($url)
 	$url = 'http://www.ceskatelevize.cz'.$url;
     $content = getFromURL($url);
     $m = array();
-    if (preg_match('/.*<iframe\s+src="(http:\/\/www.ceskatelevize.cz\/ivysilani\/embed\/iFramePlayerCT24.php[^"]*)".*/', $content, $m))
+    if (preg_match('/.*<iframe\s+src="((http:\/\/www.ceskatelevize.cz)?\/ivysilani\/embed\/iFramePlayerCT24.php[^"]*)".*/', $content, $m))
     {
 	$url = str_replace('&amp;', '&', $m[1]);
+	if (substr($url, 0, 4) != 'http')
+	    $url = 'http://www.ceskatelevize.cz'.$url;
 	$content = getFromURL($url);
     }
     return $content;
