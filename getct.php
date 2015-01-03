@@ -732,7 +732,10 @@ if ($useVLC)
     if ($useFFMPEG)
     {
 	$ffmpegParams = $verboseMore ? '' : '-loglevel silent ';
-	$ffmpegParams .= '-i '.$url.' -c:a copy -c:v copy -bsf:a aac_adtstoasc '.shellSanitize($outputFileName);
+	$ffmpegParams .= '-i '.$url.' -c:a copy -c:v copy -bsf:a aac_adtstoasc ';
+	if (isset($videos['title']))
+	    $ffmpegParams .= ' -metadata title="'.$videos['title'].'"';
+	$ffmpegParams .= ' '.shellSanitize($outputFileName);
 	$ffmpeg = 'ffmpeg '.$ffmpegParams;
 	if ($dryRun)
 	    print($ffmpeg."\n");
