@@ -731,12 +731,19 @@ if ($useVLC)
     $url = $videos['video'][$prefQuality.'p']['url'];
     if ($useFFMPEG)
     {
-	$ffmpegParams = $verboseMore ? '' : '-loglevel silent ';
-	$ffmpegParams .= '-i '.$url.' -c:a copy -c:v copy -bsf:a aac_adtstoasc ';
+	$ffmpegParams = array(
+	    '-y',	// Override output file
+	    '-i '.$url,	// Input file
+	    '-c:a copy', // Audio codec: copy
+	    '-c:v copy', // Video codec: copy
+	    '-bsf:a aac_adtstoasc',	// Skip audio errors
+	);
+	if (!$verboseMore)
+	    $ffmpegParams[] = '-loglevel silent';
 	if (isset($videos['title']))
-	    $ffmpegParams .= ' -metadata title="'.$videos['title'].'"';
-	$ffmpegParams .= ' '.shellSanitize($outputFileName);
-	$ffmpeg = 'ffmpeg '.$ffmpegParams;
+	    $ffmpegParams[] = '-metadata title="'.$videos['title'].'"';
+	$ffmpegParams[] = shellSanitize($outputFileName);	// Output filename
+	$ffmpeg = 'ffmpeg '.implode(' ', $ffmpegParams);
 	if ($dryRun)
 	    print($ffmpeg."\n");
 	else
