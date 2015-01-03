@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Params
+# Config file
+CONFIG=~/.config/ctdown.cfg
 # Path to temporary data (lock file)
 TMPPATH=/var/tmp
 # Watched file (data)
@@ -98,6 +100,11 @@ while [ "x$1" != "x" ]; do
     esac
     shift
 done
+
+# Read config file
+if [ -f "$CONFIG" ]; then
+    . $CONFIG
+fi
 
 # Fetch the 1st arg
 if [ ! -f "$FILE" ]; then
