@@ -11,6 +11,8 @@ DSTPATH=~/Video
 VERBOSE=0
 # Constants
 LOCKNAME=ctdown.lock
+# getct script
+GETCT=~/bin/getct.sh
 
 # Fetch one video
 # Params:
@@ -27,7 +29,7 @@ function one()
     if [ "$VERBOSE" == "2" ]; then
         V="-v"
     fi
-    /home/dstancl/bin/getct.sh -o "$DSTPATH/$1.mp4" -q $QUALITY -l -t 3 $V "$2"
+    $GETCT -o "$DSTPATH/$1.mp4" -q $QUALITY -l -t 3 $V "$2"
 }
 
 # Fetch one article video
@@ -45,7 +47,7 @@ function oneArticle()
     if [ "$VERBOSE" == "2" ]; then
         V="-v"
     fi
-    /home/dstancl/bin/getct.sh -o "$DSTPATH/$1.mp4" -q $QUALITY -a -l $V "$2"
+    $GETCT -o "$DSTPATH/$1.mp4" -q $QUALITY -a -l $V "$2"
 }
 
 # Process params
