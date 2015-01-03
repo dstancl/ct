@@ -13,6 +13,8 @@ VERBOSE=0
 LOCKNAME=ctdown.lock
 # getct SCRIPT
 GETCT=~/bin/getct.sh
+# use FFMPEG for download
+USEFFMPEG=0
 
 # Fetch one video
 # Params:
@@ -23,13 +25,17 @@ function one()
 {
     local QUALITY=404
     local V=""
+    local FFMPEG=""
     if [ "x$3" != "x" ]; then
 	QUALITY=$3
     fi
     if [ "$VERBOSE" == "2" ]; then
         V="-v"
     fi
-    $GETCT -o "$DSTPATH/$1.mp4" -q $QUALITY -l -t 3 $V "$2"
+    if [ "$USEFFMPEG" == "1" ]; then
+	FFMPEG="-f"
+    fi
+    $GETCT -o "$DSTPATH/$1.mp4" -q $QUALITY -l -t 3 $V $FFMPEG "$2"
 }
 
 # Fetch one article video
@@ -41,13 +47,17 @@ function oneArticle()
 {
     local QUALITY=288
     local V=""
+    local FFMPEG=""
     if [ "x$3" != "x" ]; then
 	QUALITY=$3
     fi
     if [ "$VERBOSE" == "2" ]; then
         V="-v"
     fi
-    $GETCT -o "$DSTPATH/$1.mp4" -q $QUALITY -a -l $V "$2"
+    if [ "$USEFFMPEG" == "1" ]; then
+	FFMPEG="-f"
+    fi
+    $GETCT -o "$DSTPATH/$1.mp4" -q $QUALITY -a -l $V $FFMPEG "$2"
 }
 
 # Process params
@@ -59,6 +69,9 @@ while [ "x$1" != "x" ]; do
         -vv)
             VERBOSE=2
             ;;
+	-f)
+	    USEFFMPEG=1
+	    ;;
     esac
     shift
 done
