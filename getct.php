@@ -739,7 +739,7 @@ if ($useVLC)
 	    '-bsf:a aac_adtstoasc',	// Skip audio errors
 	);
 	if (!$verboseMore)
-	    $ffmpegParams[] = '-loglevel silent';
+	    $ffmpegParams[] = '-loglevel quiet';
 	if (isset($videos['title']))
 	    $ffmpegParams[] = '-metadata title="'.$videos['title'].'"';
 	$ffmpegParams[] = shellSanitize($outputFileName);	// Output filename
