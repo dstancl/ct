@@ -1,7 +1,7 @@
 iVysilani (Czech television archive) downloader
 ===============================================
 
-Downloads video from Czech television archive named [http://www.ivysilani.cz/] iVysilani.
+Downloads video from Czech television archive named [iVysilani](http://www.ivysilani.cz/).
 
 Scripts description
 -------------------
