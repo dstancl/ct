@@ -7,7 +7,7 @@ TMPPATH=/var/tmp
 FILE=~/ctdown.lst
 # Destination dir (empty for current directory)
 DSTPATH=~/Video
-# Be verbose?
+# Verbosity level
 VERBOSE=0
 # Constants
 LOCKNAME=ctdown.lock
@@ -15,6 +15,35 @@ LOCKNAME=ctdown.lock
 GETCT=~/bin/getct.sh
 # use FFMPEG for download
 USEFFMPEG=0
+
+# Show help
+function help()
+{
+    echo "Usage: `basename $0` [-v|-vv|-vvv] [-f] [-h]"
+    echo "where"
+    echo "-v	Be verbose (show what will be downloaded)"
+    echo "-vv	Be more verbose (+ pass -v to getct.sh script)"
+    echo "-vvv	Be the most verbose (+ pass -vv to getct.sh script)"
+    echo "-f	Use FFMPEG for video downloading"
+    echo "-h	This help"
+}
+
+# Prepare common params
+function params()
+{
+    local RES=""
+    if [ "$VERBOSE" == "3" ]; then
+	RES="$RES -v -vv "
+    else
+	if [ "$VERBOSE" == "2" ]; then
+	    RES="$RES -v "
+	fi
+    fi
+    if [ "$USEFFMPEG" == "1" ]; then
+	RES="$RES -f "
+    fi
+    echo -n $RES
+}
 
 # Fetch one video
 # Params:
@@ -24,18 +53,10 @@ USEFFMPEG=0
 function one()
 {
     local QUALITY=404
-    local V=""
-    local FFMPEG=""
     if [ "x$3" != "x" ]; then
 	QUALITY=$3
     fi
-    if [ "$VERBOSE" == "2" ]; then
-        V="-v"
-    fi
-    if [ "$USEFFMPEG" == "1" ]; then
-	FFMPEG="-f"
-    fi
-    $GETCT -o "$DSTPATH/$1.mp4" -q $QUALITY -l -t 3 $V $FFMPEG "$2"
+    $GETCT -o "$DSTPATH/$1.mp4" -q $QUALITY -l -t 3 `params` "$2"
 }
 
 # Fetch one article video
@@ -46,18 +67,10 @@ function one()
 function oneArticle()
 {
     local QUALITY=288
-    local V=""
-    local FFMPEG=""
     if [ "x$3" != "x" ]; then
 	QUALITY=$3
     fi
-    if [ "$VERBOSE" == "2" ]; then
-        V="-v"
-    fi
-    if [ "$USEFFMPEG" == "1" ]; then
-	FFMPEG="-f"
-    fi
-    $GETCT -o "$DSTPATH/$1.mp4" -q $QUALITY -a -l $V $FFMPEG "$2"
+    $GETCT -o "$DSTPATH/$1.mp4" -q $QUALITY -a -l `params` "$2"
 }
 
 # Process params
@@ -69,8 +82,18 @@ while [ "x$1" != "x" ]; do
         -vv)
             VERBOSE=2
             ;;
+	-vvv)
+	    VERBOSE=3
+	    ;;
 	-f)
 	    USEFFMPEG=1
+	    ;;
+	-d)
+	    GETCT="echo"
+	    ;;
+	-h)
+	    help
+	    exit 1
 	    ;;
     esac
     shift
